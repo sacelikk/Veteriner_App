@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'fake_database.dart'; // To get databaseProvider
 
@@ -50,15 +51,17 @@ class CallService {
   }
 
   Stream<List<Map<String, dynamic>>> getIncomingCallsStream() {
-    final currentUser = _db.currentUser;
-    if (currentUser == null) return Stream.value([]);
-    
-    return _firestore
-        .collection('calls')
-        .where('receiverId', isEqualTo: currentUser.id)
-        .where('status', isEqualTo: 'calling')
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+    return FirebaseAuth.instance.authStateChanges().asyncExpand((user) {
+      if (user == null) {
+        return Stream.value([]);
+      }
+      return _firestore
+          .collection('calls')
+          .where('receiverId', isEqualTo: user.uid)
+          .where('status', isEqualTo: 'calling')
+          .snapshots()
+          .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+    });
   }
 
   Stream<Map<String, dynamic>?> getCallStatusStream(String callId) {

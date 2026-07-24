@@ -85,7 +85,7 @@ class _VetHomeScreenState extends ConsumerState<VetHomeScreen> {
                     ),
                     Switch(
                       value: isOnline,
-                      activeColor: Colors.green.shade600,
+                      activeThumbColor: Colors.green.shade600,
                       onChanged: (value) {
                         setState(() {
                           isOnline = value;

@@ -87,7 +87,7 @@ class _LiveSupportRequestScreenState extends ConsumerState<LiveSupportRequestScr
                         focusedBorder: InputBorder.none,
                       ),
                       hint: const Text('Pet Seçin'),
-                      value: _selectedPet,
+                      initialValue: _selectedPet,
                       items: pets.map((pet) {
                         return DropdownMenuItem<PetModel>(
                           value: pet,
