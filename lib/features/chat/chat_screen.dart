@@ -2,23 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/fake_database.dart';
 
-class ChatScreen extends ConsumerWidget {
+class ChatScreen extends ConsumerStatefulWidget {
   final String role; // "Pet Sahibi" veya "Veteriner Hekim"
+  final String chatId; // Hangi sohbet odası?
 
-  const ChatScreen({super.key, required this.role});
+  const ChatScreen({super.key, required this.role, required this.chatId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Mesaj listesini dinliyoruz
-    final messages = ref.watch(chatProvider);
-    final messageController = TextEditingController();
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends ConsumerState<ChatScreen> {
+  final TextEditingController messageController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    // Mesaj listesini izliyoruz (dinamik chatId ile)
+    final messages = ref.watch(chatProvider(widget.chatId));
     
     // Geçerli kullanıcıyı almak için
     final db = ref.read(databaseProvider);
     final currentUser = db.currentUser;
 
     // Karşı tarafın adı
-    final String peerName = role == "Pet Sahibi" ? "Vet. Dr. Ayşe" : "Ahmet Y. (Tarçın)";
+    final String peerName = widget.role == "Pet Sahibi" ? "Vet. Dr. Ayşe" : "Ahmet Y. (Tarçın)";
 
     return Scaffold(
       backgroundColor: Colors.grey[200],
@@ -168,8 +175,7 @@ class ChatScreen extends ConsumerWidget {
                     icon: const Icon(Icons.send, color: Colors.white, size: 20),
                     onPressed: () {
                       if (messageController.text.trim().isEmpty) return;
-                      // Firebase'e mesajı yolla (sabit test_chat_room idsine)
-                      db.sendMessage(messageController.text, 'test_chat_room');
+                      db.sendMessage(messageController.text, widget.chatId);
                       messageController.clear();
                     },
                   ),

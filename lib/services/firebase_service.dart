@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
 import '../models/pet_model.dart';
 import '../models/message_model.dart';
@@ -10,35 +11,84 @@ class FirebaseService {
 
   UserModel? currentUser;
 
-  // Giriş Yapma veya Kayıt Olma
-  Future<void> login(String email, String role) async {
-    // Gerçekte şifre de alınmalı, prototip için sadece e-posta ile giriş simülasyonu yapıyoruz
-    // Firestore'dan kullanıcıyı bul, yoksa oluştur
+  // Kayıt Olma (E-posta ve Şifre)
+  Future<void> registerWithEmail(String email, String password, String name, String role) async {
     try {
-      // Şimdilik Anonim giriş yapıp veritabanına kaydedelim (Hızlı test için)
-      UserCredential userCred = await _auth.signInAnonymously();
+      UserCredential userCred = await _auth.createUserWithEmailAndPassword(
+        email: email, 
+        password: password
+      );
       String uid = userCred.user!.uid;
 
-      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
-      
-      if (!doc.exists) {
-        // Yeni kullanıcı oluştur
-        await _firestore.collection('users').doc(uid).set({
-          'email': email,
-          'role': role,
-          'name': role == 'Pet Sahibi' ? 'Ahmet Yılmaz' : 'Vet. Dr. Ayşe',
-        });
-      }
+      // Firestore'a kullanıcı detaylarını kaydet
+      await _firestore.collection('users').doc(uid).set({
+        'email': email,
+        'name': name,
+        'role': role,
+      });
 
       currentUser = UserModel(
         id: uid,
         email: email,
         role: role,
-        name: role == 'Pet Sahibi' ? 'Ahmet Yılmaz' : 'Vet. Dr. Ayşe',
+        name: name,
       );
     } catch (e) {
-      print("Firebase Login Hatası: $e");
+      throw Exception("Kayıt Hatası: $e");
     }
+  }
+
+  // Giriş Yapma (E-posta ve Şifre)
+  Future<void> loginWithEmail(String email, String password) async {
+    try {
+      UserCredential userCred = await _auth.signInWithEmailAndPassword(
+        email: email, 
+        password: password
+      );
+      String uid = userCred.user!.uid;
+
+      // Firestore'dan rol ve isim bilgisini çek
+      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
+      
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        currentUser = UserModel(
+          id: uid,
+          email: data['email'] ?? email,
+          role: data['role'] ?? 'Pet Sahibi',
+          name: data['name'] ?? 'İsimsiz',
+        );
+      } else {
+        throw Exception("Kullanıcı verisi bulunamadı!");
+      }
+    } catch (e) {
+      throw Exception("Giriş Hatası: $e");
+    }
+  }
+
+  // Oturumu Kapat
+  Future<void> logout() async {
+    await _auth.signOut();
+    currentUser = null;
+  }
+
+  // Aktif Oturumu Kontrol Etme (Uygulama açılışında çalışacak)
+  Future<UserModel?> checkCurrentUser() async {
+    User? firebaseUser = _auth.currentUser;
+    if (firebaseUser != null) {
+      DocumentSnapshot doc = await _firestore.collection('users').doc(firebaseUser.uid).get();
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        currentUser = UserModel(
+          id: firebaseUser.uid,
+          email: data['email'] ?? firebaseUser.email!,
+          role: data['role'] ?? 'Pet Sahibi',
+          name: data['name'] ?? 'İsimsiz',
+        );
+        return currentUser;
+      }
+    }
+    return null;
   }
 
   // Pet Ekleme
@@ -124,6 +174,71 @@ class FirebaseService {
           timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
         );
       }).toList();
+    });
+  }
+
+  // Canlı Destek Talebi Oluşturma (Pet Sahibi)
+  Future<String> createSupportRequest(String problemDescription) async {
+    if (currentUser == null) throw Exception("Oturum açık değil.");
+    
+    // Yeni bir chat odası ID'si ve talep ID'si oluştur (Firestore otomatik ID kullanabiliriz)
+    final docRef = _firestore.collection('support_requests').doc();
+    final chatId = docRef.id; // Talep ID'sini aynı zamanda sohbet odası ID'si olarak kullanalım
+
+    await docRef.set({
+      'petOwnerId': currentUser!.id,
+      'petOwnerName': currentUser!.name,
+      'problemDescription': problemDescription,
+      'status': 'pending', // pending, accepted, completed
+      'createdAt': FieldValue.serverTimestamp(),
+      'chatId': chatId,
+      'vetId': null,
+      'vetName': null,
+    });
+    
+    return chatId;
+  }
+
+  // Bekleyen Talepleri Dinleme (Veteriner Hekim için)
+  Stream<List<Map<String, dynamic>>> getPendingSupportRequestsStream() {
+    return _firestore
+        .collection('support_requests')
+        .where('status', isEqualTo: 'pending')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+  }
+
+  // Talebi Kabul Etme (Veteriner Hekim)
+  Future<String> acceptSupportRequest(String requestId) async {
+    if (currentUser == null) throw Exception("Oturum açık değil.");
+    
+    final docRef = _firestore.collection('support_requests').doc(requestId);
+    
+    // Talebin durumunu güncelle
+    await docRef.update({
+      'status': 'accepted',
+      'vetId': currentUser!.id,
+      'vetName': currentUser!.name,
+    });
+    
+    // Sohbet odasına ilk karşılama mesajını otomatik atalım
+    await _firestore.collection('chats').doc(requestId).collection('messages').add({
+      'senderId': currentUser!.id,
+      'text': 'Merhaba, ben ${currentUser!.name}. Şikayetinizi inceledim, nasıl yardımcı olabilirim?',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    return requestId; // chatId ile requestId aynı
+  }
+
+  // Talep Durumunu Dinleme (Pet Sahibi için - Veteriner kabul etti mi diye kontrol eder)
+  Stream<Map<String, dynamic>?> getSupportRequestStatusStream(String requestId) {
+    return _firestore.collection('support_requests').doc(requestId).snapshots().map((doc) {
+      if (doc.exists) {
+        return doc.data();
+      }
+      return null;
     });
   }
 }

@@ -1,8 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../services/fake_database.dart';
 import 'chat_screen.dart';
 
-class LiveSupportRequestScreen extends StatelessWidget {
+class LiveSupportRequestScreen extends ConsumerStatefulWidget {
   const LiveSupportRequestScreen({super.key});
+
+  @override
+  ConsumerState<LiveSupportRequestScreen> createState() => _LiveSupportRequestScreenState();
+}
+
+class _LiveSupportRequestScreenState extends ConsumerState<LiveSupportRequestScreen> {
+  final TextEditingController _problemController = TextEditingController();
+
+  void _requestSupport() async {
+    if (_problemController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen sorunu kısaca tarif edin.')));
+      return;
+    }
+
+    final db = ref.read(databaseProvider);
+    
+    // 1. Talebi oluştur ve requestId'yi al
+    String requestId = '';
+    try {
+      requestId = await db.createSupportRequest(_problemController.text.trim());
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+      return;
+    }
+
+    if (!mounted) return;
+
+    // 2. Bekleme ekranını (Dialog) göster
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return _WaitingForVetDialog(requestId: requestId);
+      }
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +85,7 @@ class LiveSupportRequestScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             TextField(
+              controller: _problemController,
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: 'Örn: Tarçın sabahtan beri çok halsiz ve yemek yemiyor...',
@@ -84,14 +124,7 @@ class LiveSupportRequestScreen extends StatelessWidget {
 
             // Hekim Bul Butonu
             ElevatedButton(
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ChatScreen(role: "Pet Sahibi"),
-                  ),
-                );
-              },
+              onPressed: _requestSupport,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -107,6 +140,61 @@ class LiveSupportRequestScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// Özel Bekleme Dialog'u (Provider'ı dinleyip durum 'accepted' olunca sayfayı değiştirir)
+class _WaitingForVetDialog extends ConsumerWidget {
+  final String requestId;
+  const _WaitingForVetDialog({required this.requestId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statusAsync = ref.watch(supportRequestStatusProvider(requestId));
+
+    return statusAsync.when(
+      data: (statusData) {
+        if (statusData != null && statusData['status'] == 'accepted') {
+          // Veteriner kabul etti! Dialog'u kapatıp Chat ekranına yönlendir.
+          // Build içerisinde doğrudan Navigator çağırmak sakıncalı olabileceği için 
+          // addPostFrameCallback kullanıyoruz.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.pop(context); // Dialog'u kapat
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChatScreen(role: "Pet Sahibi", chatId: requestId),
+              ),
+            );
+          });
+        }
+
+        return AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 24),
+              const Text(
+                'Boşta olan bir veteriner hekim aranıyor...\nLütfen bekleyin.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: () {
+                  // TODO: Talebi iptal et
+                  Navigator.pop(context);
+                },
+                child: const Text('İptal Et', style: TextStyle(color: Colors.red)),
+              )
+            ],
+          ),
+        );
+      },
+      loading: () => const AlertDialog(content: SizedBox(height: 100, child: Center(child: CircularProgressIndicator()))),
+      error: (e, s) => AlertDialog(content: Text('Hata: $e')),
     );
   }
 }
