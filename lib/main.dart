@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'features/welcome/welcome_screen.dart';
 import 'theme/app_theme.dart';
+import 'features/chat/global_call_listener.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,11 +24,13 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'BaytarAPP',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: const WelcomeScreen(),
+    return GlobalCallListener(
+      child: MaterialApp(
+        title: 'BaytarAPP',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: const WelcomeScreen(),
+      ),
     );
   }
 }

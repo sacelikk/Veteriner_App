@@ -252,4 +252,53 @@ class FirebaseService {
       return null;
     });
   }
+
+  // --- GÖRÜNTÜLÜ ARAMA (SİNYALLEŞME) İŞLEMLERİ ---
+
+  // 1. Arama Başlatma
+  Future<void> initiateCall(String chatId) async {
+    if (currentUser == null) return;
+    
+    // Alıcıyı bul
+    final doc = await _firestore.collection('support_requests').doc(chatId).get();
+    if (!doc.exists) return;
+    
+    final data = doc.data()!;
+    final String receiverId = currentUser!.role == "Pet Sahibi" ? data['vetId'] : data['petOwnerId'];
+
+    await _firestore.collection('calls').doc(chatId).set({
+      'callerId': currentUser!.id,
+      'callerName': currentUser!.name,
+      'receiverId': receiverId,
+      'chatId': chatId,
+      'status': 'calling', // calling, accepted, rejected, ended
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // 2. Arama Durumunu Güncelleme (Kabul Et, Reddet, Bitir)
+  Future<void> updateCallStatus(String callId, String status) async {
+    await _firestore.collection('calls').doc(callId).update({
+      'status': status,
+    });
+  }
+
+  // 3. Gelen Aramaları Dinleme (Sadece bana gelen ve statüsü 'calling' olanlar)
+  Stream<List<Map<String, dynamic>>> getIncomingCallsStream() {
+    if (currentUser == null) return Stream.value([]);
+    return _firestore
+        .collection('calls')
+        .where('receiverId', isEqualTo: currentUser!.id)
+        .where('status', isEqualTo: 'calling')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+  }
+
+  // 4. Belirli bir aramanın durumunu dinleme (Arayan kişi, karşı taraf açtı mı diye dinler)
+  Stream<Map<String, dynamic>?> getCallStatusStream(String callId) {
+    return _firestore.collection('calls').doc(callId).snapshots().map((doc) {
+      if (doc.exists) return {'id': doc.id, ...doc.data()!};
+      return null;
+    });
+  }
 }

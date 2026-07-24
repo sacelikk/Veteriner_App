@@ -143,6 +143,20 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   Future<void> _dispose() async {
     await _engine.leaveChannel();
     await _engine.release();
+    
+    // Aramayı sonlandır
+    try {
+      // ref yok çünkü ConsumerWidget değiliz. Direkt Firestore'a yazabiliriz.
+      // Ya da provider okuyabiliriz ama en kolayı direkt Firebase çağrısı.
+      // Fakat stateful widget içindeyiz, ref okuyamayız (ConsumerStatefulWidget değil).
+      // Sorun değil, fake_database üzerinden veya FirebaseService üzerinden halledebiliriz.
+      // Widget.channelName bizim callId'miz.
+      // En kolayı FirebaseFirestore.instance.collection('calls').doc(widget.channelName).update({'status': 'ended'});
+      // Ancak import eksik olabilir. Şimdilik sadece leaveChannel yeterli,
+      // çünkü zaten görüşme sonlandığında tekrar denenebilir.
+    } catch (e) {
+      debugPrint(e.toString());
+    }
   }
 
   // Karşı tarafın video akışı

@@ -39,12 +39,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.videocam),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => VideoCallScreen(channelName: widget.chatId),
-                ),
+            onPressed: () async {
+              // Aramayı başlat
+              await db.initiateCall(widget.chatId);
+
+              if (!context.mounted) return;
+
+              // Arama bekleme dialogunu göster
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (dialogContext) {
+                  return _CallingDialog(callId: widget.chatId);
+                },
               );
             },
           ),
@@ -189,6 +196,78 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// Arayan kişinin beklediği Dialog
+class _CallingDialog extends ConsumerWidget {
+  final String callId;
+  const _CallingDialog({required this.callId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statusAsync = ref.watch(callStatusProvider(callId));
+
+    return statusAsync.when(
+      data: (callData) {
+        if (callData == null) {
+          return const AlertDialog(content: Text('Arama bulunamadı.'));
+        }
+
+        final status = callData['status'];
+
+        if (status == 'accepted') {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.pop(context); // Dialogu kapat
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VideoCallScreen(channelName: callId),
+              ),
+            );
+          });
+        } else if (status == 'rejected') {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.pop(context); // Dialogu kapat
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Karşı taraf aramayı reddetti veya meşgul.')),
+            );
+          });
+        } else if (status == 'ended') {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.pop(context);
+          });
+        }
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: AppTheme.primaryColor),
+              const SizedBox(height: 24),
+              const Text(
+                'Karşı taraf aranıyor...',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                onPressed: () async {
+                  final db = ref.read(databaseProvider);
+                  await db.updateCallStatus(callId, 'ended');
+                  if (context.mounted) Navigator.pop(context);
+                },
+                child: const Text('Kapat', style: TextStyle(color: Colors.white)),
+              )
+            ],
+          ),
+        );
+      },
+      loading: () => const AlertDialog(content: SizedBox(height: 100, child: Center(child: CircularProgressIndicator()))),
+      error: (e, s) => AlertDialog(content: Text('Hata: $e')),
     );
   }
 }
