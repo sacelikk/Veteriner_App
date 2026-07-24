@@ -204,9 +204,20 @@ class FirebaseService {
     return _firestore
         .collection('support_requests')
         .where('status', isEqualTo: 'pending')
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+        .map((snapshot) {
+          final requests = snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+          // Hata vermemesi için sıralamayı Firestore sorgusuyla değil, uygulama içinde yapıyoruz.
+          requests.sort((a, b) {
+            final aTime = a['createdAt'] as Timestamp?;
+            final bTime = b['createdAt'] as Timestamp?;
+            if (aTime == null && bTime == null) return 0;
+            if (aTime == null) return 1;
+            if (bTime == null) return -1;
+            return bTime.compareTo(aTime); // Yeniden eskiye (descending)
+          });
+          return requests;
+        });
   }
 
   // Talebi Kabul Etme (Veteriner Hekim)
