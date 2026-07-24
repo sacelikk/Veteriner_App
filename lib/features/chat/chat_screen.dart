@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/fake_database.dart';
+import 'video_call_screen.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String role; // "Pet Sahibi" veya "Veteriner Hekim"
@@ -46,12 +47,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           IconButton(
             icon: const Icon(Icons.videocam),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Görüntülü arama yakında eklenecek!')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VideoCallScreen(channelName: widget.chatId),
+                ),
               );
             },
           ),
-          if (role == "Veteriner Hekim")
+          if (widget.role == "Veteriner Hekim")
             IconButton(
               icon: const Icon(Icons.note_add),
               onPressed: () {

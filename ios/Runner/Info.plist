@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Veteriner hekiminizin evcil hayvanınızı canlı olarak görebilmesi için kamera izni gereklidir.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Veteriner hekiminizle görüşebilmek için mikrofon izni gereklidir.</string>
 </dict>
 </plist>
