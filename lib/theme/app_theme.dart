@@ -75,7 +75,7 @@ class AppTheme {
         hintStyle: GoogleFonts.poppins(color: textLight),
         labelStyle: GoogleFonts.poppins(color: textDark),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: white,
         elevation: 4,
         shadowColor: Colors.black12,
@@ -87,3 +87,4 @@ class AppTheme {
     );
   }
 }
+

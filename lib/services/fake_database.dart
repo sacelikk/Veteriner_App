@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_service.dart';
 import '../models/pet_model.dart';
 import '../models/message_model.dart';
+import '../models/user_model.dart';
 
 // Ana veritabanı servisini FirebaseService olarak ayarlıyoruz
 final databaseProvider = Provider<FirebaseService>((ref) {
@@ -12,6 +13,12 @@ final databaseProvider = Provider<FirebaseService>((ref) {
 final myPetsProvider = StreamProvider<List<PetModel>>((ref) {
   final db = ref.watch(databaseProvider);
   return db.getMyPetsStream();
+});
+
+// Veteriner Hekimleri getiren FutureProvider
+final veterinariansProvider = FutureProvider<List<UserModel>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.getVeterinarians();
 });
 
 // Sohbet mesajlarını dinamik chatId ile dinlemek için StreamProvider.family
@@ -31,4 +38,5 @@ final supportRequestStatusProvider = StreamProvider.family<Map<String, dynamic>?
   final db = ref.watch(databaseProvider);
   return db.getSupportRequestStatusStream(requestId);
 });
+
 

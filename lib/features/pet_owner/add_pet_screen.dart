@@ -3,23 +3,105 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math';
 import '../../services/fake_database.dart';
 import '../../models/pet_model.dart';
+import '../../theme/app_theme.dart';
+import '../../theme/animated_dialog.dart';
 
-class AddPetScreen extends ConsumerWidget {
+class AddPetScreen extends ConsumerStatefulWidget {
   const AddPetScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Controllerlar (Formdaki verileri almak için)
-    final nameController = TextEditingController();
-    final typeController = TextEditingController(text: 'Köpek'); // Varsayılan değer
-    final ageController = TextEditingController();
-    final weightController = TextEditingController();
+  ConsumerState<AddPetScreen> createState() => _AddPetScreenState();
+}
 
+class _AddPetScreenState extends ConsumerState<AddPetScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _typeController = TextEditingController(text: 'Köpek');
+  final TextEditingController _ageController = TextEditingController();
+  final TextEditingController _weightController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _typeController.dispose();
+    _ageController.dispose();
+    _weightController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSavePet() async {
+    if (_nameController.text.trim().isEmpty ||
+        _ageController.text.trim().isEmpty ||
+        _weightController.text.trim().isEmpty) {
+      AnimatedDialog.show(
+        context,
+        title: 'Eksik Bilgi',
+        message: 'Lütfen petinizin adını, yaşını ve kilosunu doldurun.',
+        type: DialogType.info,
+      );
+      return;
+    }
+
+    final db = ref.read(databaseProvider);
+    final currentUser = db.currentUser;
+    
+    if (currentUser == null) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final newPet = PetModel(
+        id: Random().nextInt(10000).toString(),
+        ownerId: currentUser.id,
+        name: _nameController.text.trim(),
+        type: _typeController.text.trim(),
+        age: int.tryParse(_ageController.text.trim()) ?? 1,
+        weight: double.tryParse(_weightController.text.trim()) ?? 1.0,
+      );
+
+      await db.addPet(newPet);
+      ref.invalidate(myPetsProvider);
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      AnimatedDialog.show(
+        context,
+        title: 'Pet Eklendi 🐾',
+        message: '${newPet.name} başarıyla evcil hayvanlarınız arasına eklendi.',
+        type: DialogType.success,
+        onConfirm: () {
+          Navigator.pop(context);
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      AnimatedDialog.show(
+        context,
+        title: 'Hata Oluştu',
+        message: e.toString().replaceAll('Exception: ', ''),
+        type: DialogType.error,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Yeni Evcil Hayvan Ekle'),
-        backgroundColor: Colors.teal,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -27,9 +109,8 @@ class AddPetScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // İsim Alanı
             TextField(
-              controller: nameController,
+              controller: _nameController,
               decoration: InputDecoration(
                 labelText: 'Petinizin Adı',
                 prefixIcon: const Icon(Icons.pets),
@@ -38,9 +119,8 @@ class AddPetScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
 
-            // Tür Alanı (Kedi, Köpek vs.)
             DropdownButtonFormField<String>(
-              initialValue: typeController.text,
+              initialValue: _typeController.text,
               decoration: InputDecoration(
                 labelText: 'Türü',
                 prefixIcon: const Icon(Icons.category),
@@ -53,17 +133,16 @@ class AddPetScreen extends ConsumerWidget {
                 );
               }).toList(),
               onChanged: (newValue) {
-                if (newValue != null) typeController.text = newValue;
+                if (newValue != null) _typeController.text = newValue;
               },
             ),
             const SizedBox(height: 16),
 
-            // Yaş ve Kilo yan yana
             Row(
               children: [
                 Expanded(
                   child: TextField(
-                    controller: ageController,
+                    controller: _ageController,
                     decoration: InputDecoration(
                       labelText: 'Yaş',
                       prefixIcon: const Icon(Icons.cake),
@@ -75,7 +154,7 @@ class AddPetScreen extends ConsumerWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: TextField(
-                    controller: weightController,
+                    controller: _weightController,
                     decoration: InputDecoration(
                       labelText: 'Kilo (kg)',
                       prefixIcon: const Icon(Icons.monitor_weight),
@@ -88,53 +167,25 @@ class AddPetScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 40),
 
-            // Kaydet Butonu
             ElevatedButton(
-              onPressed: () async {
-                // Basit Doğrulama
-                if (nameController.text.isEmpty || ageController.text.isEmpty || weightController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Lütfen tüm alanları doldurun')),
-                  );
-                  return;
-                }
-
-                // Yükleniyor Uyarısı
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Pet kaydediliyor...')),
-                );
-
-                final db = ref.read(databaseProvider);
-                final currentUser = db.currentUser;
-                
-                if (currentUser == null) return;
-
-                final newPet = PetModel(
-                  id: Random().nextInt(1000).toString(),
-                  ownerId: currentUser.id,
-                  name: nameController.text,
-                  type: typeController.text,
-                  age: int.tryParse(ageController.text) ?? 1,
-                  weight: double.tryParse(weightController.text) ?? 1.0,
-                );
-
-                await db.addPet(newPet);
-                ref.invalidate(myPetsProvider); // Ana sayfadaki listeyi yenilemesini söyler
-
-                if (!context.mounted) return;
-                Navigator.pop(context); // Önceki sayfaya dön
-              },
+              onPressed: _isLoading ? null : _handleSavePet,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
+                backgroundColor: AppTheme.primaryColor,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                'Kaydet',
-                style: TextStyle(fontSize: 18, color: Colors.white),
-              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                    )
+                  : const Text(
+                      'Kaydet',
+                      style: TextStyle(fontSize: 18, color: Colors.white),
+                    ),
             ),
           ],
         ),

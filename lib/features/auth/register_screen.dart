@@ -4,18 +4,105 @@ import '../../services/fake_database.dart';
 import '../pet_owner/owner_home_screen.dart';
 import '../veterinarian/vet_home_screen.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/animated_dialog.dart';
 
-class RegisterScreen extends ConsumerWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   final String role;
 
   const RegisterScreen({super.key, required this.role});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final nameController = TextEditingController();
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
+}
 
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isPasswordVisible = false;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleRegister() async {
+    if (_nameController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty) {
+      AnimatedDialog.show(
+        context,
+        title: 'Eksik Bilgi',
+        message: 'Lütfen tüm alanları eksiksiz doldurun.',
+        type: DialogType.info,
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final db = ref.read(databaseProvider);
+    try {
+      await db.registerWithEmail(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+        _nameController.text.trim(),
+        widget.role,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Kayıt başarılı animasyonlu diyalog ve ardından yönlendirme
+      AnimatedDialog.show(
+        context,
+        title: 'Kayıt Başarılı! 🐾',
+        message: 'Hesabınız başarıyla oluşturuldu. Aramıza hoş geldiniz!',
+        type: DialogType.success,
+        buttonText: 'Hesabıma Git',
+        onConfirm: () {
+          if (widget.role == "Pet Sahibi") {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const OwnerHomeScreen()),
+              (route) => false,
+            );
+          } else {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const VetHomeScreen()),
+              (route) => false,
+            );
+          }
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      AnimatedDialog.show(
+        context,
+        title: 'Kayıt Hatası',
+        message: e.toString().replaceAll('Exception: ', ''),
+        type: DialogType.error,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kayıt Ol'),
@@ -31,7 +118,7 @@ class RegisterScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '$role olarak hesap oluşturuyorsunuz.',
+              '${widget.role} olarak hesap oluşturuyorsunuz.',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppTheme.textLight),
             ),
             const SizedBox(height: 40),
@@ -43,7 +130,7 @@ class RegisterScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     TextField(
-                      controller: nameController,
+                      controller: _nameController,
                       decoration: const InputDecoration(
                         labelText: 'Adınız Soyadınız',
                         prefixIcon: Icon(Icons.person_outline),
@@ -51,7 +138,7 @@ class RegisterScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 20),
                     TextField(
-                      controller: emailController,
+                      controller: _emailController,
                       decoration: const InputDecoration(
                         labelText: 'E-Posta Adresi',
                         prefixIcon: Icon(Icons.email_outlined),
@@ -60,53 +147,37 @@ class RegisterScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 20),
                     TextField(
-                      controller: passwordController,
-                      decoration: const InputDecoration(
+                      controller: _passwordController,
+                      obscureText: !_isPasswordVisible,
+                      decoration: InputDecoration(
                         labelText: 'Şifre',
-                        prefixIcon: Icon(Icons.lock_outline),
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            color: AppTheme.textLight,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isPasswordVisible = !_isPasswordVisible;
+                            });
+                          },
+                        ),
                       ),
-                      obscureText: true,
                     ),
                     const SizedBox(height: 32),
                     ElevatedButton(
-                      onPressed: () async {
-                        if (emailController.text.isEmpty || passwordController.text.isEmpty || nameController.text.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tüm alanları doldurun.')));
-                          return;
-                        }
-
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hesap oluşturuluyor...')));
-
-                        final db = ref.read(databaseProvider);
-                        try {
-                          await db.registerWithEmail(
-                            emailController.text.trim(),
-                            passwordController.text.trim(),
-                            nameController.text.trim(),
-                            role,
-                          );
-
-                          if (!context.mounted) return;
-
-                          if (role == "Pet Sahibi") {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(builder: (context) => const OwnerHomeScreen()),
-                              (route) => false,
-                            );
-                          } else {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(builder: (context) => const VetHomeScreen()),
-                              (route) => false,
-                            );
-                          }
-                        } catch (e) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-                        }
-                      },
-                      child: const Text('Kayıt Ol'),
+                      onPressed: _isLoading ? null : _handleRegister,
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : const Text('Kayıt Ol'),
                     ),
                   ],
                 ),

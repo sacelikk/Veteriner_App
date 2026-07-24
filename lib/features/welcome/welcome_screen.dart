@@ -32,6 +32,15 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     }
   }
 
+  void _loginAsGuest() {
+    final db = ref.read(databaseProvider);
+    db.loginAsGuest();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const OwnerHomeScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,14 +95,14 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Lütfen devam etmek için rolünüzü seçin',
+                  'Lütfen devam etmek için giriş seçeneğini belirleyin',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Colors.white70,
                     fontSize: 16,
                   ),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 40),
 
                 // Pet Sahibi Butonu
                 ElevatedButton.icon(
@@ -130,6 +139,24 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Misafir Girişi Butonu
+                OutlinedButton.icon(
+                  onPressed: _loginAsGuest,
+                  icon: const Icon(Icons.visibility, color: Colors.white),
+                  label: const Text(
+                    'Misafir Girişi (Gözlemci)',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.white, width: 1.5),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                 ),
               ],

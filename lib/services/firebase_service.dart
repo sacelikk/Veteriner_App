@@ -38,7 +38,12 @@ class FirebaseService {
     }
   }
 
-  // Giriş Yapma (E-posta ve Şifre)
+  // Misafir Girişi
+  void loginAsGuest() {
+    currentUser = UserModel.guest();
+  }
+
+  // Giriş Yapma (E-posta ve Şifre) - Optimize Edilmiş
   Future<void> loginWithEmail(String email, String password) async {
     try {
       UserCredential userCred = await _auth.signInWithEmailAndPassword(
@@ -47,28 +52,49 @@ class FirebaseService {
       );
       String uid = userCred.user!.uid;
 
-      // Firestore'dan rol ve isim bilgisini çek
-      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
-      
-      if (doc.exists) {
+      // Firestore'dan veriyi hızlı almak için önbellek & zamanaşımı optimizasyonu
+      DocumentSnapshot? doc;
+      try {
+        doc = await _firestore
+            .collection('users')
+            .doc(uid)
+            .get(const GetOptions(source: Source.serverAndCache))
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {
+        // Ağ yavaşlığında takılmayı önler
+      }
+
+      if (doc != null && doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
         currentUser = UserModel(
           id: uid,
           email: data['email'] ?? email,
           role: data['role'] ?? 'Pet Sahibi',
-          name: data['name'] ?? 'İsimsiz',
+          name: data['name'] ?? 'Kullanıcı',
         );
       } else {
-        throw Exception("Kullanıcı verisi bulunamadı!");
+        // Veri okuma zamanaşımına uğradıysa Auth bilgisini kullanır (Hızlı fallback)
+        currentUser = UserModel(
+          id: uid,
+          email: userCred.user?.email ?? email,
+          role: 'Pet Sahibi',
+          name: userCred.user?.displayName ?? email.split('@').first,
+        );
       }
     } catch (e) {
-      throw Exception("Giriş Hatası: $e");
+      String msg = e.toString().replaceAll('Exception: ', '');
+      if (msg.contains('invalid-credential') || msg.contains('wrong-password') || msg.contains('user-not-found')) {
+        throw Exception("E-posta adresi veya şifre hatalı.");
+      }
+      throw Exception(msg);
     }
   }
 
   // Oturumu Kapat
   Future<void> logout() async {
-    await _auth.signOut();
+    if (_auth.currentUser != null) {
+      await _auth.signOut();
+    }
     currentUser = null;
   }
 
@@ -76,19 +102,70 @@ class FirebaseService {
   Future<UserModel?> checkCurrentUser() async {
     User? firebaseUser = _auth.currentUser;
     if (firebaseUser != null) {
-      DocumentSnapshot doc = await _firestore.collection('users').doc(firebaseUser.uid).get();
-      if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>;
-        currentUser = UserModel(
-          id: firebaseUser.uid,
-          email: data['email'] ?? firebaseUser.email!,
-          role: data['role'] ?? 'Pet Sahibi',
-          name: data['name'] ?? 'İsimsiz',
-        );
-        return currentUser;
-      }
+      try {
+        DocumentSnapshot doc = await _firestore
+            .collection('users')
+            .doc(firebaseUser.uid)
+            .get(const GetOptions(source: Source.serverAndCache))
+            .timeout(const Duration(seconds: 3));
+            
+        if (doc.exists) {
+          final data = doc.data() as Map<String, dynamic>;
+          currentUser = UserModel(
+            id: firebaseUser.uid,
+            email: data['email'] ?? firebaseUser.email!,
+            role: data['role'] ?? 'Pet Sahibi',
+            name: data['name'] ?? 'İsimsiz',
+          );
+          return currentUser;
+        }
+      } catch (_) {}
+      
+      currentUser = UserModel(
+        id: firebaseUser.uid,
+        email: firebaseUser.email ?? '',
+        role: 'Pet Sahibi',
+        name: firebaseUser.displayName ?? 'Kullanıcı',
+      );
+      return currentUser;
     }
     return null;
+  }
+
+  // Veteriner Hekimleri Getirme (Misafir ve Pet Sahibi Görünümü İçin)
+  Future<List<UserModel>> getVeterinarians() async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'Veteriner Hekim')
+          .get(const GetOptions(source: Source.serverAndCache))
+          .timeout(const Duration(seconds: 3));
+
+      List<UserModel> vets = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return UserModel(
+          id: doc.id,
+          email: data['email'] ?? '',
+          role: data['role'] ?? 'Veteriner Hekim',
+          name: data['name'] ?? 'Veteriner Hekim',
+        );
+      }).toList();
+
+      if (vets.isEmpty) {
+        return _getMockVets();
+      }
+      return vets;
+    } catch (_) {
+      return _getMockVets();
+    }
+  }
+
+  List<UserModel> _getMockVets() {
+    return [
+      UserModel(id: 'vet1', email: 'ayse@baytar.com', role: 'Veteriner Hekim', name: 'Dr. Ayşe Yılmaz (Kedi & Köpek Uzmanı)'),
+      UserModel(id: 'vet2', email: 'mehmet@baytar.com', role: 'Veteriner Hekim', name: 'Dr. Mehmet Kaya (Genel Cerrahi)'),
+      UserModel(id: 'vet3', email: 'zeynep@baytar.com', role: 'Veteriner Hekim', name: 'Dr. Zeynep Demir (Ezotik & Kuş Hekimi)'),
+    ];
   }
 
   // Pet Ekleme

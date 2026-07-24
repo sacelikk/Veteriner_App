@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/fake_database.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/animated_dialog.dart';
 import 'chat_screen.dart';
 
 class LiveSupportRequestScreen extends ConsumerStatefulWidget {
@@ -14,27 +15,41 @@ class LiveSupportRequestScreen extends ConsumerStatefulWidget {
 class _LiveSupportRequestScreenState extends ConsumerState<LiveSupportRequestScreen> {
   final TextEditingController _problemController = TextEditingController();
 
+  @override
+  void dispose() {
+    _problemController.dispose();
+    super.dispose();
+  }
+
   void _requestSupport() async {
     if (_problemController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen sorunu kısaca tarif edin.')));
+      AnimatedDialog.show(
+        context,
+        title: 'Açıklama Eksik',
+        message: 'Lütfen petinizin sorununu kısaca tarif edin.',
+        type: DialogType.info,
+      );
       return;
     }
 
     final db = ref.read(databaseProvider);
     
-    // 1. Talebi oluştur ve requestId'yi al
     String requestId = '';
     try {
       requestId = await db.createSupportRequest(_problemController.text.trim());
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+      AnimatedDialog.show(
+        context,
+        title: 'Talep Oluşturulamadı',
+        message: e.toString().replaceAll('Exception: ', ''),
+        type: DialogType.error,
+      );
       return;
     }
 
     if (!mounted) return;
 
-    // 2. Bekleme ekranını (Dialog) göster
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -112,7 +127,12 @@ class _LiveSupportRequestScreenState extends ConsumerState<LiveSupportRequestScr
             const SizedBox(height: 12),
             InkWell(
               onTap: () {
-                // TODO: Galeri veya kameradan medya seçimi
+                AnimatedDialog.show(
+                  context,
+                  title: 'Medya Seçimi',
+                  message: 'Fotoğraf veya video yükleme yakında aktifleştirilecektir.',
+                  type: DialogType.info,
+                );
               },
               child: Container(
                 height: 100,
@@ -133,7 +153,6 @@ class _LiveSupportRequestScreenState extends ConsumerState<LiveSupportRequestScr
             ),
             const SizedBox(height: 40),
 
-            // Hekim Bul Butonu
             ElevatedButton(
               onPressed: _requestSupport,
               child: const Text('Çevrimiçi Hekim Bul'),
@@ -145,7 +164,6 @@ class _LiveSupportRequestScreenState extends ConsumerState<LiveSupportRequestScr
   }
 }
 
-// Özel Bekleme Dialog'u (Provider'ı dinleyip durum 'accepted' olunca sayfayı değiştirir)
 class _WaitingForVetDialog extends ConsumerWidget {
   final String requestId;
   const _WaitingForVetDialog({required this.requestId});
@@ -158,7 +176,7 @@ class _WaitingForVetDialog extends ConsumerWidget {
       data: (statusData) {
         if (statusData != null && statusData['status'] == 'accepted') {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            Navigator.pop(context); // Dialog'u kapat
+            Navigator.pop(context);
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
