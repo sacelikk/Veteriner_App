@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_service.dart';
+export 'firebase_service.dart';
 import '../models/pet_model.dart';
 import '../models/message_model.dart';
 

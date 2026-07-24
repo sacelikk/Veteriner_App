@@ -85,7 +85,7 @@ class _GlobalCallListenerState extends ConsumerState<GlobalCallListener> {
                 final db = ref.read(databaseProvider);
                 await db.updateCallStatus(callId, 'accepted');
                 _currentlyRingingCallId = null;
-                if (dialogContext.mounted) {
+                if (context.mounted) {
                   Navigator.pop(dialogContext); // Dialogu kapat
                   // Kamera ekranına git
                   Navigator.push(
