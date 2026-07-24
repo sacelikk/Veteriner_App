@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 
-const appId = "b6ebb8986e8c4a36885b7810f8ecab90"; 
+const appId = "b04c1f1952e0440bb190bc1827b22b01"; 
 const token = ""; // Test amaçlı boş bırakılabilir veya projenizde Security Mode kapalıysa.
 
 class VideoCallScreen extends StatefulWidget {
