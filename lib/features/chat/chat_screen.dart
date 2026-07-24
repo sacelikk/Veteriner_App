@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/fake_database.dart';
-import '../../services/firebase_service.dart';
+import '../../services/call_service.dart';
 import '../../theme/app_theme.dart';
 import 'video_call_screen.dart';
 
@@ -42,7 +42,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             icon: const Icon(Icons.videocam),
             onPressed: () async {
               // Aramayı başlat
-              await db.initiateCall(widget.chatId);
+              final callService = ref.read(callServiceProvider);
+              await callService.initiateCall(widget.chatId);
 
               if (!context.mounted) return;
 
@@ -257,8 +258,8 @@ class _CallingDialog extends ConsumerWidget {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
                 onPressed: () async {
-                  final db = ref.read(databaseProvider);
-                  await db.updateCallStatus(callId, 'ended');
+                  final callService = ref.read(callServiceProvider);
+                  await callService.updateCallStatus(callId, 'ended');
                   if (context.mounted) Navigator.pop(context);
                 },
                 child: const Text('Kapat', style: TextStyle(color: Colors.white)),

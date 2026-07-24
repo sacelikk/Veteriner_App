@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../services/fake_database.dart';
-import '../../services/firebase_service.dart';
+import '../../services/call_service.dart';
 import 'video_call_screen.dart';
 
 class GlobalCallListener extends ConsumerStatefulWidget {
@@ -17,7 +16,6 @@ class _GlobalCallListenerState extends ConsumerState<GlobalCallListener> {
 
   @override
   Widget build(BuildContext context) {
-    // Gelen aramaları dinleyelim
     ref.listen<AsyncValue<List<Map<String, dynamic>>>>(
       incomingCallsProvider,
       (previous, next) {
@@ -31,9 +29,6 @@ class _GlobalCallListenerState extends ConsumerState<GlobalCallListener> {
               _currentlyRingingCallId = callId;
               _showIncomingCallDialog(callId, callerName);
             }
-          } else {
-            // Arama kapandıysa veya iptal edildiyse, açıksa dialogu kapatabiliriz
-            // Ancak bu basitlikte kalsın. Dialog zaten reject/accept ile kapanıyor.
           }
         });
       },
@@ -71,8 +66,8 @@ class _GlobalCallListenerState extends ConsumerState<GlobalCallListener> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
               onPressed: () async {
-                final db = ref.read(databaseProvider);
-                await db.updateCallStatus(callId, 'rejected');
+                final callService = ref.read(callServiceProvider);
+                await callService.updateCallStatus(callId, 'rejected');
                 _currentlyRingingCallId = null;
                 if (dialogContext.mounted) {
                   Navigator.pop(dialogContext);
@@ -83,8 +78,8 @@ class _GlobalCallListenerState extends ConsumerState<GlobalCallListener> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
               onPressed: () async {
-                final db = ref.read(databaseProvider);
-                await db.updateCallStatus(callId, 'accepted');
+                final callService = ref.read(callServiceProvider);
+                await callService.updateCallStatus(callId, 'accepted');
                 _currentlyRingingCallId = null;
                 if (context.mounted) {
                   Navigator.pop(dialogContext); // Dialogu kapat

@@ -33,14 +33,3 @@ final supportRequestStatusProvider = StreamProvider.family<Map<String, dynamic>?
   return db.getSupportRequestStatusStream(requestId);
 });
 
-// Gelen aramaları dinlemek için StreamProvider
-final incomingCallsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
-  final db = ref.watch(databaseProvider);
-  return db.getIncomingCallsStream();
-});
-
-// Belirli bir aramanın durumunu dinlemek için StreamProvider.family
-final callStatusProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, callId) {
-  final db = ref.watch(databaseProvider);
-  return db.getCallStatusStream(callId);
-});
