@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../chat/chat_screen.dart';
 import '../../services/fake_database.dart';
+import '../../theme/app_theme.dart';
+import '../welcome/welcome_screen.dart';
 
 class VetHomeScreen extends ConsumerStatefulWidget {
   const VetHomeScreen({super.key});
@@ -33,11 +35,8 @@ class _VetHomeScreenState extends ConsumerState<VetHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text('Hekim Paneli'),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
@@ -46,7 +45,11 @@ class _VetHomeScreenState extends ConsumerState<VetHomeScreen> {
               final db = ref.read(databaseProvider);
               await db.logout();
               if (!mounted) return;
-              Navigator.pop(context); // TODO: Ana sayfaya yönlendir
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                (route) => false,
+              );
             },
           ),
         ],
@@ -58,8 +61,6 @@ class _VetHomeScreenState extends ConsumerState<VetHomeScreen> {
           children: [
             // Durum Değiştirme Kartı
             Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Row(
@@ -68,15 +69,15 @@ class _VetHomeScreenState extends ConsumerState<VetHomeScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Müsaitlik Durumu',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 8),
                         Text(
                           isOnline ? 'Çevrimiçisiniz (Talepler açık)' : 'Çevrimdışısınız',
                           style: TextStyle(
-                            color: isOnline ? Colors.green : Colors.grey,
+                            color: isOnline ? Colors.green.shade600 : AppTheme.textLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -84,7 +85,7 @@ class _VetHomeScreenState extends ConsumerState<VetHomeScreen> {
                     ),
                     Switch(
                       value: isOnline,
-                      activeThumbColor: Colors.green,
+                      activeColor: Colors.green.shade600,
                       onChanged: (value) {
                         setState(() {
                           isOnline = value;
@@ -98,18 +99,25 @@ class _VetHomeScreenState extends ConsumerState<VetHomeScreen> {
             const SizedBox(height: 32),
 
             // Gelen Talepler Listesi
-            const Text(
+            Text(
               'Gelen Destek Talepleri',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
 
             if (!isOnline)
-              const Expanded(
+              Expanded(
                 child: Center(
-                  child: Text(
-                    'Talep alabilmek için çevrimiçi olmalısınız.',
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.bedtime, size: 64, color: AppTheme.textLight.withOpacity(0.5)),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Talep alabilmek için çevrimiçi olmalısınız.',
+                        style: TextStyle(color: AppTheme.textLight, fontSize: 16),
+                      ),
+                    ],
                   ),
                 ),
               )
@@ -122,7 +130,19 @@ class _VetHomeScreenState extends ConsumerState<VetHomeScreen> {
                     return requestsAsync.when(
                       data: (requests) {
                         if (requests.isEmpty) {
-                          return const Center(child: Text("Bekleyen talep yok."));
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.inbox, size: 64, color: AppTheme.textLight.withOpacity(0.5)),
+                                const SizedBox(height: 16),
+                                Text(
+                                  "Şu an bekleyen talep yok.",
+                                  style: TextStyle(color: AppTheme.textLight, fontSize: 16),
+                                ),
+                              ],
+                            ),
+                          );
                         }
                         
                         return ListView.builder(
@@ -130,28 +150,32 @@ class _VetHomeScreenState extends ConsumerState<VetHomeScreen> {
                           itemBuilder: (context, index) {
                             final req = requests[index];
                             return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              child: ListTile(
-                                leading: const CircleAvatar(
-                                  backgroundColor: Colors.orange,
-                                  child: Icon(Icons.pets, color: Colors.white),
-                                ),
-                                title: Text(req['petOwnerName'] ?? 'Bilinmeyen Kullanıcı'),
-                                subtitle: Text(
-                                  req['problemDescription'] ?? '',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing: ElevatedButton(
-                                  onPressed: () => _acceptRequest(req['id']),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.teal,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
+                              margin: const EdgeInsets.only(bottom: 16),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: ListTile(
+                                  leading: const CircleAvatar(
+                                    backgroundColor: AppTheme.accentColor,
+                                    radius: 24,
+                                    child: Icon(Icons.pets, color: Colors.white),
+                                  ),
+                                  title: Text(
+                                    req['petOwnerName'] ?? 'Bilinmeyen Kullanıcı',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: Padding(
+                                    padding: const EdgeInsets.only(top: 8.0),
+                                    child: Text(
+                                      req['problemDescription'] ?? '',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: AppTheme.textLight),
                                     ),
                                   ),
-                                  child: const Text('Kabul Et', style: TextStyle(color: Colors.white)),
+                                  trailing: ElevatedButton(
+                                    onPressed: () => _acceptRequest(req['id']),
+                                    child: const Text('Kabul Et'),
+                                  ),
                                 ),
                               ),
                             );

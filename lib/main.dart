@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'features/welcome/welcome_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,7 +12,7 @@ void main() async {
   );
   
   runApp(
-    const ProviderScope( // Riverpod için gerekli kapsayıcı
+    const ProviderScope(
       child: MainApp(),
     ),
   );
@@ -25,9 +26,7 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       title: 'BaytarAPP',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.teal,
-      ),
+      theme: AppTheme.lightTheme,
       home: const WelcomeScreen(),
     );
   }

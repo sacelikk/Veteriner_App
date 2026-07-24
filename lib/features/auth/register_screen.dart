@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../services/fake_database.dart'; // databaseProvider'ı buradan alıyoruz
+import '../../services/fake_database.dart'; 
 import '../pet_owner/owner_home_screen.dart';
 import '../veterinarian/vet_home_screen.dart';
+import '../../theme/app_theme.dart';
 
 class RegisterScreen extends ConsumerWidget {
   final String role;
@@ -16,12 +17,8 @@ class RegisterScreen extends ConsumerWidget {
     final passwordController = TextEditingController();
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Kayıt Ol'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.teal,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -30,95 +27,90 @@ class RegisterScreen extends ConsumerWidget {
           children: [
             Text(
               'Aramıza Katılın 🐾',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+              style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 24),
             ),
             const SizedBox(height: 8),
             Text(
               '$role olarak hesap oluşturuyorsunuz.',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppTheme.textLight),
             ),
             const SizedBox(height: 40),
 
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                labelText: 'Adınız Soyadınız',
-                prefixIcon: const Icon(Icons.person_outline),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Adınız Soyadınız',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: emailController,
+                      decoration: const InputDecoration(
+                        labelText: 'E-Posta Adresi',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: passwordController,
+                      decoration: const InputDecoration(
+                        labelText: 'Şifre',
+                        prefixIcon: Icon(Icons.lock_outline),
+                      ),
+                      obscureText: true,
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (emailController.text.isEmpty || passwordController.text.isEmpty || nameController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tüm alanları doldurun.')));
+                          return;
+                        }
+
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hesap oluşturuluyor...')));
+
+                        final db = ref.read(databaseProvider);
+                        try {
+                          await db.registerWithEmail(
+                            emailController.text.trim(),
+                            passwordController.text.trim(),
+                            nameController.text.trim(),
+                            role,
+                          );
+
+                          if (!context.mounted) return;
+
+                          if (role == "Pet Sahibi") {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(builder: (context) => const OwnerHomeScreen()),
+                              (route) => false,
+                            );
+                          } else {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(builder: (context) => const VetHomeScreen()),
+                              (route) => false,
+                            );
+                          }
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                        }
+                      },
+                      child: const Text('Kayıt Ol'),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(
-                labelText: 'E-Posta Adresi',
-                prefixIcon: const Icon(Icons.email_outlined),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 16),
-
-            TextField(
-              controller: passwordController,
-              decoration: InputDecoration(
-                labelText: 'Şifre',
-                prefixIcon: const Icon(Icons.lock_outline),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 24),
-
-            ElevatedButton(
-              onPressed: () async {
-                if (emailController.text.isEmpty || passwordController.text.isEmpty || nameController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tüm alanları doldurun.')));
-                  return;
-                }
-
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hesap oluşturuluyor...')));
-
-                final db = ref.read(databaseProvider);
-                try {
-                  await db.registerWithEmail(
-                    emailController.text.trim(),
-                    passwordController.text.trim(),
-                    nameController.text.trim(),
-                    role,
-                  );
-
-                  if (!context.mounted) return;
-
-                  if (role == "Pet Sahibi") {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const OwnerHomeScreen()),
-                      (route) => false,
-                    );
-                  } else {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const VetHomeScreen()),
-                      (route) => false,
-                    );
-                  }
-                } catch (e) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Kayıt Ol', style: TextStyle(fontSize: 18, color: Colors.white)),
             ),
           ],
         ),

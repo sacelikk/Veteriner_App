@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/fake_database.dart';
+import '../../theme/app_theme.dart';
 import 'chat_screen.dart';
 
 class LiveSupportRequestScreen extends ConsumerStatefulWidget {
@@ -46,57 +47,67 @@ class _LiveSupportRequestScreenState extends ConsumerState<LiveSupportRequestScr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Canlı Destek Talebi'),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            Text(
               'Hangi petiniz için destek almak istiyorsunuz?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
-            // Şimdilik sahte bir dropdown ile pet seçimi
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.pets),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.pets),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                  ),
+                  hint: const Text('Pet Seçin'),
+                  items: ['Tarçın (Köpek)', 'Mia (Kedi)'].map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {},
+                ),
               ),
-              hint: const Text('Pet Seçin'),
-              items: ['Tarçın (Köpek)', 'Mia (Kedi)'].map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {},
             ),
             const SizedBox(height: 24),
 
-            const Text(
+            Text(
               'Sorunu Kısaca Tarif Edin',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _problemController,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: 'Örn: Tarçın sabahtan beri çok halsiz ve yemek yemiyor...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextField(
+                  controller: _problemController,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    hintText: 'Örn: Tarçın sabahtan beri çok halsiz ve yemek yemiyor...',
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 24),
 
-            const Text(
+            Text(
               'Fotoğraf veya Video Ekle (İsteğe Bağlı)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
             InkWell(
@@ -106,16 +117,16 @@ class _LiveSupportRequestScreenState extends ConsumerState<LiveSupportRequestScr
               child: Container(
                 height: 100,
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  border: Border.all(color: Colors.teal, style: BorderStyle.solid),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white,
+                  border: Border.all(color: AppTheme.primaryLight, style: BorderStyle.solid),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.camera_alt, size: 32, color: Colors.teal),
+                    Icon(Icons.camera_alt, size: 32, color: AppTheme.primaryLight),
                     SizedBox(height: 8),
-                    Text('Medya Yükle', style: TextStyle(color: Colors.teal)),
+                    Text('Medya Yükle', style: TextStyle(color: AppTheme.primaryLight, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -125,17 +136,7 @@ class _LiveSupportRequestScreenState extends ConsumerState<LiveSupportRequestScr
             // Hekim Bul Butonu
             ElevatedButton(
               onPressed: _requestSupport,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Çevrimiçi Hekim Bul',
-                style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
-              ),
+              child: const Text('Çevrimiçi Hekim Bul'),
             ),
           ],
         ),
@@ -156,9 +157,6 @@ class _WaitingForVetDialog extends ConsumerWidget {
     return statusAsync.when(
       data: (statusData) {
         if (statusData != null && statusData['status'] == 'accepted') {
-          // Veteriner kabul etti! Dialog'u kapatıp Chat ekranına yönlendir.
-          // Build içerisinde doğrudan Navigator çağırmak sakıncalı olabileceği için 
-          // addPostFrameCallback kullanıyoruz.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.pop(context); // Dialog'u kapat
             Navigator.pushReplacement(
@@ -171,20 +169,20 @@ class _WaitingForVetDialog extends ConsumerWidget {
         }
 
         return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator(),
+              const CircularProgressIndicator(color: AppTheme.primaryColor),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Boşta olan bir veteriner hekim aranıyor...\nLütfen bekleyin.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 24),
               TextButton(
                 onPressed: () {
-                  // TODO: Talebi iptal et
                   Navigator.pop(context);
                 },
                 child: const Text('İptal Et', style: TextStyle(color: Colors.red)),

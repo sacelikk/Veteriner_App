@@ -4,6 +4,7 @@ import '../pet_owner/owner_home_screen.dart';
 import '../veterinarian/vet_home_screen.dart';
 import '../../services/fake_database.dart';
 import 'register_screen.dart';
+import '../../theme/app_theme.dart';
 
 class LoginScreen extends ConsumerWidget {
   final String role; 
@@ -16,12 +17,8 @@ class LoginScreen extends ConsumerWidget {
     final passwordController = TextEditingController();
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Giriş Yap'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.teal, 
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -30,96 +27,84 @@ class LoginScreen extends ConsumerWidget {
           children: [
             Text(
               'Merhaba $role 👋',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+              style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 24),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Devam etmek için lütfen giriş yapın.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppTheme.textLight),
             ),
             const SizedBox(height: 40),
 
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(
-                labelText: 'E-Posta Adresi',
-                prefixIcon: const Icon(Icons.email_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: emailController,
+                      decoration: const InputDecoration(
+                        labelText: 'E-Posta Adresi',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: passwordController,
+                      decoration: const InputDecoration(
+                        labelText: 'Şifre',
+                        prefixIcon: Icon(Icons.lock_outline),
+                        suffixIcon: Icon(Icons.visibility_off), 
+                      ),
+                      obscureText: true,
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tüm alanları doldurun.')));
+                          return;
+                        }
+
+                        final db = ref.read(databaseProvider);
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Giriş yapılıyor...')),
+                        );
+                        
+                        try {
+                          await db.loginWithEmail(emailController.text.trim(), passwordController.text.trim());
+
+                          if (!context.mounted) return;
+
+                          if (db.currentUser?.role == "Pet Sahibi") {
+                            Navigator.pushAndRemoveUntil( 
+                              context,
+                              MaterialPageRoute(builder: (context) => const OwnerHomeScreen()),
+                              (route) => false,
+                            );
+                          } else {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(builder: (context) => const VetHomeScreen()),
+                              (route) => false,
+                            );
+                          }
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                        }
+                      },
+                      child: const Text('Giriş Yap'),
+                    ),
+                  ],
                 ),
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 16),
-
-            TextField(
-              controller: passwordController,
-              decoration: InputDecoration(
-                labelText: 'Şifre',
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: const Icon(Icons.visibility_off), 
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 24),
-
-            ElevatedButton(
-              onPressed: () async {
-                if (emailController.text.isEmpty || passwordController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tüm alanları doldurun.')));
-                  return;
-                }
-
-                final db = ref.read(databaseProvider);
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Giriş yapılıyor...')),
-                );
-                
-                try {
-                  await db.loginWithEmail(emailController.text.trim(), passwordController.text.trim());
-
-                  if (!context.mounted) return;
-
-                  if (db.currentUser?.role == "Pet Sahibi") {
-                    Navigator.pushAndRemoveUntil( 
-                      context,
-                      MaterialPageRoute(builder: (context) => const OwnerHomeScreen()),
-                      (route) => false,
-                    );
-                  } else {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const VetHomeScreen()),
-                      (route) => false,
-                    );
-                  }
-                } catch (e) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Giriş Yap',
-                style: TextStyle(fontSize: 18, color: Colors.white),
               ),
             ),
             
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             TextButton(
               onPressed: () {
                 Navigator.push(
@@ -129,7 +114,7 @@ class LoginScreen extends ConsumerWidget {
               },
               child: const Text(
                 'Hesabınız yok mu? Kayıt Olun',
-                style: TextStyle(color: Colors.teal, fontSize: 16),
+                style: TextStyle(color: AppTheme.primaryColor, fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ],

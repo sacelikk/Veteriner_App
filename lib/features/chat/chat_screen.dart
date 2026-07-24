@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/fake_database.dart';
+import '../../theme/app_theme.dart';
 import 'video_call_screen.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -18,31 +19,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Mesaj listesini izliyoruz (dinamik chatId ile)
     final messages = ref.watch(chatProvider(widget.chatId));
-    
-    // Geçerli kullanıcıyı almak için
     final db = ref.read(databaseProvider);
     final currentUser = db.currentUser;
-
-    // Karşı tarafın adı
     final String peerName = widget.role == "Pet Sahibi" ? "Vet. Dr. Ayşe" : "Ahmet Y. (Tarçın)";
 
     return Scaffold(
-      backgroundColor: Colors.grey[200],
       appBar: AppBar(
         title: Row(
           children: [
             const CircleAvatar(
               backgroundColor: Colors.white,
-              child: Icon(Icons.person, color: Colors.teal),
+              child: Icon(Icons.person, color: AppTheme.primaryColor),
             ),
             const SizedBox(width: 12),
             Text(peerName, style: const TextStyle(fontSize: 16)),
           ],
         ),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.videocam),
@@ -70,12 +63,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           // Kalan Süre Uyarısı
           Container(
             width: double.infinity,
-            color: Colors.orange[100],
+            color: Colors.orange.shade100,
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: const Text(
+            child: Text(
               'Görüşme Süresi: 19:45',
               textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange),
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange.shade800),
             ),
           ),
           
@@ -91,7 +84,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   itemCount: msgList.length,
                   itemBuilder: (context, index) {
                     final message = msgList[index];
-                    // Mesajı gönderen biz miyiz?
                     final isMe = currentUser != null && message.senderId == currentUser.id;
 
                     return Align(
@@ -100,7 +92,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
-                          color: isMe ? Colors.teal : Colors.white,
+                          color: isMe ? AppTheme.primaryColor : Colors.white,
                           borderRadius: BorderRadius.only(
                             topLeft: const Radius.circular(16),
                             topRight: const Radius.circular(16),
@@ -121,7 +113,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             Text(
                               message.text,
                               style: TextStyle(
-                                color: isMe ? Colors.white : Colors.black87,
+                                color: isMe ? Colors.white : AppTheme.textDark,
                                 fontSize: 16,
                               ),
                             ),
@@ -129,7 +121,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             Text(
                               message.timeFormatted,
                               style: TextStyle(
-                                color: isMe ? Colors.white70 : Colors.grey,
+                                color: isMe ? Colors.white70 : AppTheme.textLight,
                                 fontSize: 10,
                               ),
                             ),
@@ -152,7 +144,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.attach_file, color: Colors.grey),
+                  icon: const Icon(Icons.attach_file, color: AppTheme.textLight),
                   onPressed: () {
                     // TODO: Medya gönder
                   },
@@ -166,15 +158,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide.none,
                       ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
                       filled: true,
-                      fillColor: Colors.grey[100],
+                      fillColor: AppTheme.backgroundColor,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 CircleAvatar(
-                  backgroundColor: Colors.teal,
+                  backgroundColor: AppTheme.accentColor,
                   child: IconButton(
                     icon: const Icon(Icons.send, color: Colors.white, size: 20),
                     onPressed: () {
