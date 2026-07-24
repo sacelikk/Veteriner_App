@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/fake_database.dart';
+import '../../services/firebase_service.dart';
 import '../../theme/app_theme.dart';
 import 'video_call_screen.dart';
 
