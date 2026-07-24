@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1033318110155",
+    "project_id": "baytarapp",
+    "storage_bucket": "baytarapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1033318110155:android:80b487e553ae793d17dc4e",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiLp-aa5ZGP_LcL68raHmswAQw4Ll0bio"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
