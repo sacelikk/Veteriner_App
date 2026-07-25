@@ -78,21 +78,48 @@ class _LiveSupportRequestScreenState extends ConsumerState<LiveSupportRequestScr
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.pets),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                  ),
-                  hint: const Text('Pet Seçin'),
-                  items: ['Tarçın (Köpek)', 'Mia (Kedi)'].map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final petsAsync = ref.watch(myPetsProvider);
+                    return petsAsync.when(
+                      data: (pets) {
+                        final itemsList = pets.isEmpty
+                            ? ['Genel Sağlık Danışmanlığı']
+                            : pets.map((p) => '${p.name} (${p.type})').toList();
+                        return DropdownButtonFormField<String>(
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.pets),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                          ),
+                          hint: const Text('Pet Seçin'),
+                          items: itemsList.map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
+                          onChanged: (newValue) {},
+                        );
+                      },
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (_, __) => DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.pets),
+                          border: InputBorder.none,
+                        ),
+                        hint: const Text('Genel Sağlık Danışmanlığı'),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Genel Sağlık Danışmanlığı',
+                            child: Text('Genel Sağlık Danışmanlığı'),
+                          )
+                        ],
+                        onChanged: (v) {},
+                      ),
                     );
-                  }).toList(),
-                  onChanged: (newValue) {},
+                  },
                 ),
               ),
             ),
@@ -110,7 +137,7 @@ class _LiveSupportRequestScreenState extends ConsumerState<LiveSupportRequestScr
                   controller: _problemController,
                   maxLines: 4,
                   decoration: const InputDecoration(
-                    hintText: 'Örn: Tarçın sabahtan beri çok halsiz ve yemek yemiyor...',
+                    hintText: 'Örn: Evcil hayvanım sabahtan beri halsiz ve yemek yemiyor...',
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,

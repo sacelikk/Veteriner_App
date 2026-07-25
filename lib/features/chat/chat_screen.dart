@@ -22,7 +22,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final messages = ref.watch(chatProvider(widget.chatId));
     final db = ref.read(databaseProvider);
     final currentUser = db.currentUser;
-    final String peerName = widget.role == "Pet Sahibi" ? "Vet. Dr. Ayşe" : "Ahmet Y. (Tarçın)";
+    final String peerName = widget.role == "Pet Sahibi" ? "Veteriner Hekim" : "Pet Sahibi";
 
     return Scaffold(
       appBar: AppBar(
@@ -39,7 +39,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.videocam),
-            onPressed: () {
+            tooltip: "Görüntülü Görüşme Başlat",
+            onPressed: () async {
+              final db = ref.read(databaseProvider);
+              await db.sendCallInvite(widget.chatId);
+              if (!context.mounted) return;
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -85,6 +89,112 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   itemBuilder: (context, index) {
                     final message = msgList[index];
                     final isMe = currentUser != null && message.senderId == currentUser.id;
+
+                    if (message.type == 'call_invite') {
+                      if (isMe) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryLight.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: const [
+                                  Icon(Icons.videocam, color: AppTheme.primaryColor),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Görüntülü Görüşme Daveti Gönderildi 📹',
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor, fontSize: 14),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => VideoCallScreen(channelName: widget.chatId),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.videocam, size: 18),
+                                label: const Text('Görüşmeye Katıl'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryColor,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      } else {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.green.shade400, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.green.withOpacity(0.15),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.video_call, color: Colors.green, size: 28),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Görüntülü Görüşme Çağrısı 📹',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Karşı taraf sizi canlı görüntülü görüşmeye davet ediyor.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 13, color: Colors.black87),
+                              ),
+                              const SizedBox(height: 12),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => VideoCallScreen(channelName: widget.chatId),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.call, color: Colors.white),
+                                label: const Text(
+                                  'GÖRÜŞMEYE KATIL',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade600,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    }
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,

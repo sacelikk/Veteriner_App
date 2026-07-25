@@ -3,6 +3,7 @@ import 'firebase_service.dart';
 import '../models/pet_model.dart';
 import '../models/message_model.dart';
 import '../models/user_model.dart';
+import '../models/vet_review_model.dart';
 
 // Ana veritabanı servisini FirebaseService olarak ayarlıyoruz
 final databaseProvider = Provider<FirebaseService>((ref) {
@@ -19,6 +20,12 @@ final myPetsProvider = StreamProvider<List<PetModel>>((ref) {
 final veterinariansProvider = FutureProvider<List<UserModel>>((ref) {
   final db = ref.watch(databaseProvider);
   return db.getVeterinarians();
+});
+
+// Veteriner Hekim Değerlendirmelerini dinleyen StreamProvider.family
+final vetReviewsProvider = StreamProvider.family<List<VetReviewModel>, String>((ref, vetId) {
+  final db = ref.watch(databaseProvider);
+  return db.getVetReviewsStream(vetId);
 });
 
 // Sohbet mesajlarını dinamik chatId ile dinlemek için StreamProvider.family
@@ -38,5 +45,6 @@ final supportRequestStatusProvider = StreamProvider.family<Map<String, dynamic>?
   final db = ref.watch(databaseProvider);
   return db.getSupportRequestStatusStream(requestId);
 });
+
 
 

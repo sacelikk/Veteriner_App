@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
 import '../models/pet_model.dart';
 import '../models/message_model.dart';
+import '../models/vet_review_model.dart';
 
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -43,7 +44,7 @@ class FirebaseService {
     currentUser = UserModel.guest();
   }
 
-  // Giriş Yapma (E-posta ve Şifre) - Optimize Edilmiş
+  // Giriş Yapma (E-posta ve Şifre)
   Future<void> loginWithEmail(String email, String password) async {
     try {
       UserCredential userCred = await _auth.signInWithEmailAndPassword(
@@ -52,28 +53,26 @@ class FirebaseService {
       );
       String uid = userCred.user!.uid;
 
-      // Firestore'dan veriyi hızlı almak için önbellek & zamanaşımı optimizasyonu
-      DocumentSnapshot? doc;
-      try {
-        doc = await _firestore
-            .collection('users')
-            .doc(uid)
-            .get(const GetOptions(source: Source.serverAndCache))
-            .timeout(const Duration(seconds: 3));
-      } catch (_) {
-        // Ağ yavaşlığında takılmayı önler
-      }
+      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
 
-      if (doc != null && doc.exists) {
+      if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
         currentUser = UserModel(
           id: uid,
           email: data['email'] ?? email,
           role: data['role'] ?? 'Pet Sahibi',
           name: data['name'] ?? 'Kullanıcı',
+          clinicName: data['clinicName'],
+          workingDaysHours: data['workingDaysHours'],
+          phone: data['phone'],
+          address: data['address'],
+          bio: data['bio'],
+          specialties: data['specialties'] != null ? List<String>.from(data['specialties']) : [],
+          rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+          reviewCount: (data['reviewCount'] as num?)?.toInt() ?? 0,
+          isOnline: data['isOnline'] ?? false,
         );
       } else {
-        // Veri okuma zamanaşımına uğradıysa Auth bilgisini kullanır (Hızlı fallback)
         currentUser = UserModel(
           id: uid,
           email: userCred.user?.email ?? email,
@@ -106,8 +105,7 @@ class FirebaseService {
         DocumentSnapshot doc = await _firestore
             .collection('users')
             .doc(firebaseUser.uid)
-            .get(const GetOptions(source: Source.serverAndCache))
-            .timeout(const Duration(seconds: 3));
+            .get();
             
         if (doc.exists) {
           final data = doc.data() as Map<String, dynamic>;
@@ -116,6 +114,15 @@ class FirebaseService {
             email: data['email'] ?? firebaseUser.email!,
             role: data['role'] ?? 'Pet Sahibi',
             name: data['name'] ?? 'İsimsiz',
+            clinicName: data['clinicName'],
+            workingDaysHours: data['workingDaysHours'],
+            phone: data['phone'],
+            address: data['address'],
+            bio: data['bio'],
+            specialties: data['specialties'] != null ? List<String>.from(data['specialties']) : [],
+            rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+            reviewCount: (data['reviewCount'] as num?)?.toInt() ?? 0,
+            isOnline: data['isOnline'] ?? false,
           );
           return currentUser;
         }
@@ -148,36 +155,55 @@ class FirebaseService {
           email: data['email'] ?? '',
           role: data['role'] ?? 'Veteriner Hekim',
           name: data['name'] ?? 'Veteriner Hekim',
+          clinicName: data['clinicName'],
+          workingDaysHours: data['workingDaysHours'],
+          phone: data['phone'],
+          address: data['address'],
+          bio: data['bio'],
+          specialties: data['specialties'] != null 
+              ? List<String>.from(data['specialties']) 
+              : [],
+          rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+          reviewCount: (data['reviewCount'] as num?)?.toInt() ?? 0,
+          isOnline: data['isOnline'] ?? false,
         );
       }).toList();
 
-      if (vets.isEmpty) {
-        return _getMockVets();
-      }
       return vets;
     } catch (_) {
-      return _getMockVets();
+      return [];
     }
   }
 
-  List<UserModel> _getMockVets() {
-    return [
-      UserModel(id: 'vet1', email: 'ayse@baytar.com', role: 'Veteriner Hekim', name: 'Dr. Ayşe Yılmaz (Kedi & Köpek Uzmanı)'),
-      UserModel(id: 'vet2', email: 'mehmet@baytar.com', role: 'Veteriner Hekim', name: 'Dr. Mehmet Kaya (Genel Cerrahi)'),
-      UserModel(id: 'vet3', email: 'zeynep@baytar.com', role: 'Veteriner Hekim', name: 'Dr. Zeynep Demir (Ezotik & Kuş Hekimi)'),
-    ];
+  // Değerlendirme & Yorum Ekleme
+  Future<void> addVetReview(String vetId, double rating, String comment) async {
+    final reviewerName = currentUser?.name ?? 'Anonim Pet Sahibi';
+    await _firestore.collection('vet_reviews').add({
+      'vetId': vetId,
+      'reviewerName': reviewerName,
+      'rating': rating,
+      'comment': comment,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Değerlendirmeleri Dinleme (Stream)
+  Stream<List<VetReviewModel>> getVetReviewsStream(String vetId) {
+    return _firestore
+        .collection('vet_reviews')
+        .where('vetId', isEqualTo: vetId)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return VetReviewModel.fromMap(doc.id, doc.data());
+      }).toList();
+    }).handleError((_) => <VetReviewModel>[]);
   }
 
   // Pet Ekleme
   Future<void> addPet(PetModel pet) async {
     if (currentUser == null) return;
-    await _firestore.collection('pets').doc(pet.id).set({
-      'ownerId': currentUser!.id,
-      'name': pet.name,
-      'type': pet.type,
-      'age': pet.age,
-      'weight': pet.weight,
-    });
+    await _firestore.collection('pets').doc(pet.id).set(pet.toMap());
   }
 
   // Kullanıcının Petlerini Getirme (Future)
@@ -188,17 +214,7 @@ class FirebaseService {
         .where('ownerId', isEqualTo: currentUser!.id)
         .get();
 
-    return snapshot.docs.map((doc) {
-      final data = doc.data();
-      return PetModel(
-        id: doc.id,
-        ownerId: data['ownerId'],
-        name: data['name'],
-        type: data['type'],
-        age: data['age'],
-        weight: (data['weight'] as num).toDouble(),
-      );
-    }).toList();
+    return snapshot.docs.map((doc) => PetModel.fromMap(doc.id, doc.data())).toList();
   }
 
   // Kullanıcının Petlerini Dinleme (Stream)
@@ -209,17 +225,7 @@ class FirebaseService {
         .where('ownerId', isEqualTo: currentUser!.id)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return PetModel(
-          id: doc.id,
-          ownerId: data['ownerId'],
-          name: data['name'],
-          type: data['type'],
-          age: data['age'],
-          weight: (data['weight'] as num).toDouble(),
-        );
-      }).toList();
+      return snapshot.docs.map((doc) => PetModel.fromMap(doc.id, doc.data())).toList();
     });
   }
 
@@ -229,6 +235,18 @@ class FirebaseService {
     await _firestore.collection('chats').doc(chatId).collection('messages').add({
       'senderId': currentUser!.id,
       'text': text,
+      'type': 'text',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Görüntülü Görüşme Daveti Gönderme
+  Future<void> sendCallInvite(String chatId) async {
+    if (currentUser == null) return;
+    await _firestore.collection('chats').doc(chatId).collection('messages').add({
+      'senderId': currentUser!.id,
+      'text': '📹 Görüntülü görüşme daveti gönderildi. Katılmak için dokunun.',
+      'type': 'call_invite',
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
@@ -239,19 +257,14 @@ class FirebaseService {
         .collection('chats')
         .doc(chatId)
         .collection('messages')
-        .orderBy('timestamp', descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return MessageModel(
-          id: doc.id,
-          senderId: data['senderId'] ?? '',
-          text: data['text'] ?? '',
-          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-        );
+      final list = snapshot.docs.map((doc) {
+        return MessageModel.fromMap(doc.id, doc.data());
       }).toList();
-    });
+      list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      return list;
+    }).handleError((_) => <MessageModel>[]);
   }
 
   // Canlı Destek Talebi Oluşturma (Pet Sahibi)
@@ -281,9 +294,19 @@ class FirebaseService {
     return _firestore
         .collection('support_requests')
         .where('status', isEqualTo: 'pending')
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+        .map((snapshot) {
+      final list = snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+      list.sort((a, b) {
+        final tA = a['createdAt'] as Timestamp?;
+        final tB = b['createdAt'] as Timestamp?;
+        if (tA == null && tB == null) return 0;
+        if (tA == null) return -1;
+        if (tB == null) return 1;
+        return tB.compareTo(tA);
+      });
+      return list;
+    }).handleError((_) => <Map<String, dynamic>>[]);
   }
 
   // Talebi Kabul Etme (Veteriner Hekim)

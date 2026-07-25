@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 
-const appId = "b6ebb8986e8c4a36885b7810f8ecab90"; 
-const token = ""; // Test amaçlı boş bırakılabilir veya projenizde Security Mode kapalıysa.
+const appId = "b04c1f1952e0440bb190bc1827b22b01"; 
+const token = "007eJxTYLgloH3Br5fjQqdtl4RShENKE/NswQsHtDf3x+54cGnzXFsFhiQDk2TDNENLU6NUAxMTg6QkQ0uDpGRDCyPzJCOjJAPDHrXUrIZARob7V6UZmBgYGViAGMRnApPMYJIFTPIwpKTm5usmZyTm5aXmMIBVM0LlDQ0MDAFECiTr";
+const defaultChannel = "demo-channel";
 
 class VideoCallScreen extends StatefulWidget {
   final String channelName;
@@ -19,6 +20,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   int? _remoteUid;
   bool _localUserJoined = false;
   bool _muted = false;
+  String? _agoraErrorMessage;
   late RtcEngine _engine;
 
   @override
@@ -29,7 +31,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   Future<void> initAgora() async {
     // 1. İzinleri al (Kamera ve Mikrofon)
-    await [Permission.microphone, Permission.camera].request();
+    final statuses = await [Permission.microphone, Permission.camera].request();
+    if (statuses[Permission.camera] != PermissionStatus.granted ||
+        statuses[Permission.microphone] != PermissionStatus.granted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Görüntülü görüşme için kamera ve mikrofon izni gereklidir.')),
+      );
+      return;
+    }
 
     // 2. Motoru başlat
     _engine = createAgoraRtcEngine();
@@ -43,38 +53,61 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       RtcEngineEventHandler(
         onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
           debugPrint("Yerel kullanıcı katıldı: ${connection.localUid}");
-          setState(() {
-            _localUserJoined = true;
-          });
+          if (mounted) {
+            setState(() {
+              _localUserJoined = true;
+              _agoraErrorMessage = null;
+            });
+          }
         },
         onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
           debugPrint("Uzak kullanıcı katıldı: $remoteUid");
-          setState(() {
-            _remoteUid = remoteUid;
-          });
+          if (mounted) {
+            setState(() {
+              _remoteUid = remoteUid;
+            });
+          }
         },
         onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
           debugPrint("Uzak kullanıcı ayrıldı: $remoteUid");
-          setState(() {
-            _remoteUid = null;
-          });
+          if (mounted) {
+            setState(() {
+              _remoteUid = null;
+            });
+          }
         },
-        onTokenPrivilegeWillExpire: (RtcConnection connection, String token) {
-          debugPrint('[onTokenPrivilegeWillExpire] connection: ${connection.toJson()}, token: $token');
+        onError: (ErrorCodeType err, String msg) {
+          debugPrint("Agora Hata ($err): $msg");
+          if (err == ErrorCodeType.errInvalidToken || err == ErrorCodeType.errTokenExpired) {
+            if (mounted) {
+              setState(() {
+                _agoraErrorMessage =
+                    'Agora Geçersiz Token Hatası (errInvalidToken)\n\nAgora Console üzerindeki token süresi dolmuş veya kanal adı eşleşmiyor.';
+              });
+            }
+          }
         },
       ),
     );
 
-    // 4. Videoyu aktif et ve odaya katıl
-    await _engine.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
+    // 4. Videoyu aktif et ve odaya yayın yapacak şekilde katıl
     await _engine.enableVideo();
     await _engine.startPreview();
 
+    final activeChannel = token.isNotEmpty ? defaultChannel : (widget.channelName.isNotEmpty ? widget.channelName : defaultChannel);
+
     await _engine.joinChannel(
       token: token,
-      channelId: widget.channelName,
-      uid: 0, // 0 verirsek Agora rastgele bir ID atar
-      options: const ChannelMediaOptions(),
+      channelId: activeChannel,
+      uid: 0, // 0 verirsek Agora rastgele benzersiz bir UID atar
+      options: const ChannelMediaOptions(
+        clientRoleType: ClientRoleType.clientRoleBroadcaster,
+        channelProfile: ChannelProfileType.channelProfileCommunication,
+        publishCameraTrack: true,
+        publishMicrophoneTrack: true,
+        autoSubscribeAudio: true,
+        autoSubscribeVideo: true,
+      ),
     );
   }
 
@@ -147,6 +180,24 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   // Karşı tarafın video akışı
   Widget _remoteVideo() {
+    if (_agoraErrorMessage != null) {
+      return Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.warning_amber_rounded, size: 64, color: Colors.orangeAccent),
+            const SizedBox(height: 16),
+            Text(
+              _agoraErrorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (_remoteUid != null) {
       return AgoraVideoView(
         controller: VideoViewController.remote(
