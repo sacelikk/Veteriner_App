@@ -21,11 +21,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   bool _localUserJoined = false;
   bool _muted = false;
   String? _agoraErrorMessage;
+  late String _activeChannel;
   late RtcEngine _engine;
 
   @override
   void initState() {
     super.initState();
+    _activeChannel = token.isNotEmpty 
+        ? defaultChannel 
+        : (widget.channelName.isNotEmpty ? widget.channelName : defaultChannel);
     initAgora();
   }
 
@@ -52,7 +56,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     _engine.registerEventHandler(
       RtcEngineEventHandler(
         onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
-          debugPrint("Yerel kullanıcı katıldı: ${connection.localUid}");
+          debugPrint("Yerel kullanıcı katıldı: ${connection.localUid} (Kanal: ${connection.channelId})");
           if (mounted) {
             setState(() {
               _localUserJoined = true;
@@ -66,6 +70,16 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
             setState(() {
               _remoteUid = remoteUid;
             });
+          }
+        },
+        onRemoteVideoStateChanged: (RtcConnection connection, int remoteUid, RemoteVideoState state, RemoteVideoStateReason reason, int elapsed) {
+          debugPrint("Uzak video değişti: $remoteUid -> $state");
+          if (state == RemoteVideoState.remoteVideoStateDecoding || state == RemoteVideoState.remoteVideoStateStarting) {
+            if (mounted) {
+              setState(() {
+                _remoteUid = remoteUid;
+              });
+            }
           }
         },
         onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
@@ -94,11 +108,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     await _engine.enableVideo();
     await _engine.startPreview();
 
-    final activeChannel = token.isNotEmpty ? defaultChannel : (widget.channelName.isNotEmpty ? widget.channelName : defaultChannel);
-
     await _engine.joinChannel(
       token: token,
-      channelId: activeChannel,
+      channelId: _activeChannel,
       uid: 0, // 0 verirsek Agora rastgele benzersiz bir UID atar
       options: const ChannelMediaOptions(
         clientRoleType: ClientRoleType.clientRoleBroadcaster,
@@ -203,7 +215,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         controller: VideoViewController.remote(
           rtcEngine: _engine,
           canvas: VideoCanvas(uid: _remoteUid),
-          connection: RtcConnection(channelId: widget.channelName),
+          connection: RtcConnection(channelId: _activeChannel),
         ),
       );
     } else {
